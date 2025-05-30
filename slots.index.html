@@ -1,0 +1,2139 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>GiftSlots</title>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <style>
+        /* Обновленный градиент фона */
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            background: linear-gradient(-45deg, #0a1128, #001f54, #00072d, #001f54);
+            background-size: 400% 400%;
+            animation: gradientBG 15s ease infinite;
+            color: white;
+            overflow: hidden; /* Важно для конфетти и монеток */
+        }
+
+        @keyframes gradientBG {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+
+        .slot-machine {
+            background: rgba(0, 0, 0, 0.5);
+            border-radius: 15px;
+            padding: 25px;
+            box-shadow: 0 0 30px rgba(0, 0, 0, 0.8);
+            text-align: center;
+            backdrop-filter: blur(5px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            position: relative; /* Важно для позиционирования JACKPOT! и watermark */
+            z-index: 10; /* Чтобы слот был поверх конфетти */
+            margin-bottom: 20px; /* Отступ от правил */
+        }
+
+        h1 {
+            text-shadow: 0 0 10px rgba(255, 255, 255, 0.5);
+            margin-top: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+        }
+
+        /* Минималистичная слот-машина для заголовка */
+        .slot-icon {
+            display: inline-block;
+            width: 70px; /* Шире для трех слотов */
+            height: 30px;
+            border: none; /* Убрали золотую обводку */
+            border-radius: 5px;
+            position: relative;
+            overflow: hidden;
+            background-color: rgba(0, 0, 0, 0.5);
+            padding: 2px 0;
+            display: flex; /* Для размещения трех элементов */
+            justify-content: center;
+            align-items: center;
+            gap: 2px; /* Расстояние между "барабанами" */
+        }
+
+        .slot-icon-reel {
+            width: 20px; /* Размер барабана */
+            height: 25px;
+            background: linear-gradient(to bottom, #ccc, #888);
+            border-radius: 2px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .slot-icon-reel::before {
+            content: '';
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(
+                135deg,
+                rgba(255, 255, 255, 0.2) 0%,
+                rgba(255, 255, 255, 0.05) 20%,
+                transparent 50%,
+                rgba(255, 255, 255, 0.05) 80%,
+                rgba(255, 255, 255, 0.2) 100%
+            );
+            opacity: 0.6;
+        }
+
+
+        .slot-icon-handle {
+            position: absolute;
+            width: 5px;
+            height: 15px;
+            background-color: #f00;
+            border-radius: 2px;
+            top: 5px;
+            right: -8px;
+            transform: rotate(20deg);
+        }
+
+        .slot-icon-handle::after {
+            content: '';
+            position: absolute;
+            width: 10px;
+            height: 10px;
+            background-color: #a00;
+            border-radius: 50%;
+            top: -5px;
+            left: -2px;
+        }
+
+        /* Дополнительная палочка */
+        .slot-icon-handle::before {
+            content: '';
+            position: absolute;
+            width: 5px;
+            height: 15px;
+            background-color: #f00;
+            border-radius: 2px;
+            top: 5px;
+            right: -15px; /* Смещаем для второй палочки */
+            transform: rotate(20deg);
+        }
+
+        .slot-icon-handle::before::after {
+            content: '';
+            position: absolute;
+            width: 10px;
+            height: 10px;
+            background-color: #a00;
+            border-radius: 50%;
+            top: -5px;
+            left: -2px;
+        }
+
+
+        .slots {
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+            margin: 30px 0;
+            perspective: 600px;
+            perspective-origin: center center;
+        }
+
+        /* Анимация падающих слотов */
+        .slot {
+            width: 90px;
+            height: 140px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+            position: relative;
+            /* Выпуклость и стеклянный эффект */
+            box-shadow:
+                inset 0 0 10px rgba(0, 0, 0, 0.7), /* Более выраженная внутренняя тень */
+                inset 0 0 0 1px rgba(255, 255, 255, 0.1), /* Тонкая внутренняя светлая рамка */
+                0 8px 15px rgba(0, 0, 0, 0.6), /* Основная тень для объема */
+                0 0 20px rgba(255, 255, 255, 0.05) inset; /* Мягкое свечение внутри для "стекла" */
+            transform: scale(1.02); /* Немного увеличен для объема по умолчанию */
+            transition: transform 0.3s ease-out, box-shadow 0.5s ease-out; /* Добавили transition для box-shadow */
+            z-index: 1; /* Чтобы быть поверх конфетти */
+        }
+
+        /* Блики на "стекле" слота */
+        .slot::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            border-radius: 10px;
+            background: linear-gradient(
+                135deg,
+                rgba(255, 255, 255, 0.2) 0%,
+                rgba(255, 255, 255, 0.05) 20%,
+                transparent 50%,
+                rgba(255, 255, 255, 0.05) 80%,
+                rgba(255, 255, 255, 0.2) 100%
+            );
+            opacity: 0.6;
+            z-index: 2;
+            pointer-events: none;
+        }
+
+        .slot:active {
+            transform: scale(1); /* Слегка вдавливаем при нажатии */
+        }
+
+        .slot-value {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transform: translateY(-100%) rotateX(90deg);
+            opacity: 0;
+            /* Важно: возвращаем быструю линейную transition для смены символов */
+            transition: transform 0.05s linear, opacity 0.05s linear;
+            z-index: 1;
+        }
+
+        .slot-value img {
+            max-width: 80%;
+            max-height: 80%;
+            object-fit: contain; /* Убедимся, что изображение помещается */
+            filter: drop-shadow(0 0 10px rgba(255, 255, 255, 0.8));
+            transition: filter 0.5s ease-out; /* Добавим transition для плавности */
+        }
+
+        /* Новый стиль для золотой подсветки изображения при джекпоте и других выигрышах */
+        .slot-value img.jackpot-img-glow {
+            animation: jackpotImgGlow 1.5s infinite alternate; /* Анимация мигания */
+        }
+
+        @keyframes jackpotImgGlow {
+            0% { filter: drop-shadow(0 0 10px rgba(255, 255, 255, 0.8)); } /* Исходная тень */
+            50% { filter: drop-shadow(0 0 25px gold) drop-shadow(0 0 35px orange); } /* Яркая золотая тень */
+            100% { filter: drop_shadow(0 0 10px rgba(255, 255, 255, 0.8)); } /* Исходная тень */
+        }
+
+        .slot-value img.win-glow {
+            animation: winImgGlow 1.2s infinite alternate;
+        }
+
+        @keyframes winImgGlow {
+            0% { filter: drop-shadow(0 0 8px rgba(255, 255, 255, 0.6)); }
+            50% { filter: drop-shadow(0 0 15px gold) drop-shadow(0 0 20px yellow); }
+            100% { filter: drop-shadow(0 0 8px rgba(255, 255, 255, 0.6)); }
+        }
+
+
+        .slot.spinning .slot-value {
+            /* Важно: возвращаем linear для быстрой, "реалистичной" прокрутки */
+            animation: slotSpin 0.07s infinite linear;
+        }
+
+        /* Анимация прокрутки символов */
+        @keyframes slotSpin {
+            0% { transform: translateY(-100%) rotateX(90deg); opacity: 0; }
+            5% { transform: translateY(-50%) rotateX(45deg); opacity: 0.8; }
+            100% { transform: translateY(100%) rotateX(-90deg); opacity: 0; }
+        }
+
+        .slot-value.visible {
+            transform: translateY(0) rotateX(0deg);
+            opacity: 1;
+            /* Важно: сохраняем плавный transition для финальной остановки */
+            transition: transform 0.8s cubic-bezier(0.25, 1, 0.5, 1), opacity 0.8s cubic-bezier(0.25, 1, 0.5, 1);
+        }
+
+        /* Контейнер для кнопок управления спином */
+        .spin-controls {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 15px;
+            margin: 20px auto;
+        }
+
+        /* Круглая кнопка Play */
+        .lever {
+            width: 100px;
+            height: 100px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #f05050, #d02020);
+            cursor: pointer;
+            display: flex;
+            flex-direction: column; /* Для размещения текста и цены */
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            color: white;
+            font-size: 20px;
+            user-select: none;
+            transition: all 0.3s;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+            border: none;
+        }
+
+        .lever:active {
+            transform: scale(0.95) translateY(5px);
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.3);
+            background: linear-gradient(135deg, #d02020, #a00000);
+        }
+
+        .lever.disabled {
+            background: gray !important;
+            cursor: not-allowed;
+            transform: none !important;
+        }
+
+        .lever-text {
+            line-height: 1; /* Уменьшаем межстрочный интервал */
+        }
+
+        .lever-price {
+            font-size: 14px;
+            display: flex;
+            align-items: center;
+            gap: 2px;
+            margin-top: 5px; /* Отступ от PLAY */
+        }
+
+        .lever-price img {
+            height: 1em; /* Размер звезды */
+            vertical-align: middle;
+        }
+
+        /* Новые маленькие круглые кнопки */
+        .small-round-btn {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #cc0000, #800000);
+            color: white;
+            font-size: 14px;
+            font-weight: bold;
+            border: none;
+            box-shadow: 0 3px 10px rgba(0, 0, 0, 0.3);
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: flex;
+            flex-direction: column; /* Для текста и комиссии */
+            align-items: center;
+            justify-content: center;
+            user-select: none;
+            position: relative; /* Для позиционирования комиссии */
+        }
+
+        .small-round-btn:hover:not(.disabled) {
+            transform: scale(1.05);
+            background: linear-gradient(135deg, #ff3333, #b30000);
+            box-shadow: 0 5px 12px rgba(0, 0, 0, 0.4);
+        }
+
+        .small-round-btn:active:not(.disabled) {
+            transform: scale(0.9);
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.3);
+            background: linear-gradient(135deg, #b30000, #660000);
+        }
+
+        .small-round-btn.disabled {
+            background: #555 !important;
+            cursor: not-allowed;
+            opacity: 0.7;
+            transform: none !important;
+        }
+
+        /* Стиль для кнопки Demo, когда она активна */
+        #demoBtn.active {
+            background: gray !important; /* Серый цвет */
+            cursor: pointer; /* Курсор остается pointer, т.к. можно выключить */
+            opacity: 1; /* Полная видимость */
+        }
+
+        /* Стиль для комиссии Quick */
+        .quick-commission {
+            position: absolute;
+            bottom: -18px; /* Ниже кнопки */
+            font-size: 10px;
+            color: rgba(255, 255, 255, 0.7);
+            display: flex;
+            align-items: center;
+            gap: 2px;
+            white-space: nowrap;
+        }
+
+        .quick-commission img {
+            height: 0.8em; /* Размер звезды */
+            vertical-align: middle;
+        }
+
+
+        .result {
+            display: none;
+            height: 0;
+            overflow: hidden;
+            margin: 0;
+            padding: 0;
+        }
+
+        .win-animation {
+            animation: none !important;
+            color: unset !important;
+        }
+
+
+        /* --- Модальное окно (для выигрышей/проигрышей) --- */
+        #modalOverlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.75);
+            backdrop-filter: blur(5px);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.3s ease-out, visibility 0.3s ease-out;
+        }
+
+        #modalOverlay.show {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        #modalWindow {
+            background: rgba(20, 20, 20, 0.95);
+            border-radius: 15px;
+            padding: 30px 25px;
+            max-width: 300px;
+            text-align: center;
+            color: white;
+            box-shadow: 0 0 30px #ffcc00;
+            position: relative;
+        }
+
+        #modalWindow .closeBtn {
+            position: absolute;
+            top: 10px;
+            right: 15px;
+            font-size: 22px;
+            font-weight: bold;
+            color: #ccc;
+            cursor: pointer;
+            user-select: none;
+            transition: color 0.3s;
+        }
+
+        #modalWindow .closeBtn:hover {
+            color: #ffcc00;
+        }
+
+        #modalWindow .modalResult {
+            margin-bottom: 25px;
+            font-size: 24px;
+            font-weight: bold;
+            text-shadow: 0 0 15px #ffcc00;
+        }
+
+        /* --- Модальное окно для инструкций --- */
+        #infoModalOverlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.75);
+            backdrop-filter: blur(5px);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1001; /* Выше чем основное модальное окно */
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.3s ease-out, visibility 0.3s ease-out;
+        }
+
+        #infoModalOverlay.show {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        #infoModalWindow {
+            background: rgba(20, 20, 20, 0.95);
+            border-radius: 15px;
+            padding: 25px;
+            max-width: 350px;
+            text-align: center;
+            color: white;
+            box-shadow: 0 0 30px #00aaff; /* Синее свечение для инфо */
+            position: relative;
+            transform: scale(0.9);
+            transition: transform 0.3s ease-out;
+            max-height: 80vh; /* Ограничиваем высоту */
+            overflow-y: auto; /* Добавляем прокрутку, если содержимое больше */
+        }
+
+        #infoModalOverlay.show #infoModalWindow {
+            transform: scale(1);
+        }
+
+        #infoModalWindow h2 {
+            margin-top: 0;
+            color: #00eaff;
+            text-shadow: 0 0 10px #00aaff;
+        }
+
+        #infoModalWindow p {
+            font-size: 14px;
+            line-height: 1.5;
+            margin-bottom: 15px;
+            text-align: left;
+        }
+
+        .info-section p span {
+            color: #ccddff; /* Ярче для выделенных слов */
+            font-weight: bold;
+            text-shadow: 0 0 5px rgba(204, 221, 255, 0.5);
+        }
+
+        #infoModalWindow .info-section {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+            padding: 10px;
+            margin-bottom: 10px;
+        }
+
+        #infoModalWindow .info-section strong {
+            color: #ccddff;
+        }
+
+        /* Стиль для инфо модалки */
+        #infoModalWindow ul {
+            list-style: none; /* Убираем стандартные маркеры */
+            padding: 0;
+            margin: 0;
+            text-align: left;
+        }
+
+        #infoModalWindow ul li {
+            margin-bottom: 8px;
+            display: flex; /* Для выравнивания текста и картинки */
+            align-items: center;
+            gap: 5px; /* Отступ между текстом и картинкой */
+        }
+
+        #infoModalWindow ul li img {
+            height: 18px; /* Размер картинки в инфо модалке */
+            width: 18px;
+            vertical-align: middle;
+            filter: drop-shadow(0 0 3px rgba(255, 255, 255, 0.5));
+        }
+
+        /* Красная обводка для дисклеймера */
+        .disclaimer-module {
+            border: 2px solid red;
+            padding: 10px;
+            border-radius: 8px;
+            margin-top: 20px;
+            background: rgba(255, 0, 0, 0.1);
+            color: red;
+            font-size: 13px;
+            font-weight: bold;
+            text-shadow: 0 0 5px rgba(0, 0, 0, 0.5);
+            text-align: center;
+        }
+
+        /* Галерея символов */
+        .symbol-gallery {
+            margin-top: 20px;
+            padding-top: 15px;
+            border-top: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .symbol-gallery h3 {
+            color: #00eaff;
+            text-shadow: 0 0 8px #00aaff;
+            margin-top: 0;
+            margin-bottom: 15px;
+        }
+
+        .symbol-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr); /* 3 столбца */
+            gap: 10px;
+            max-height: 200px; /* Ограничиваем высоту */
+            overflow-y: auto; /* Добавляем скролл */
+            padding-right: 5px; /* Отступ для скроллбара */
+        }
+
+        .symbol-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: flex-end; /* Выравниваем по низу для текста */
+            padding: 5px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 5px;
+            height: 80px; /* Фиксированная высота */
+        }
+
+        .symbol-item img {
+            max-width: 60px;
+            max-height: 60px;
+            object-fit: contain;
+            filter: drop-shadow(0 0 5px rgba(255, 255, 255, 0.5));
+            flex-grow: 1; /* Занимает доступное пространство */
+        }
+
+        .symbol-item span {
+            font-size: 12px;
+            color: rgba(255, 255, 255, 0.7);
+            margin-top: 5px;
+        }
+
+
+        /* Кнопка "Попробовать ещё раз" (общие стили) */
+        button.retryBtn,
+        button.closeInfoBtn,
+        button.quickSpinStartBtn {
+            background: linear-gradient(to bottom, #f05050, #d02020);
+            border: none;
+            padding: 12px 20px;
+            border-radius: 8px;
+            font-weight: bold;
+            color: white;
+            cursor: pointer;
+            font-size: 18px;
+            transition: all 0.3s;
+            box-shadow: 0 3px 8px rgba(0, 0, 0, 0.3);
+            display: block;
+            margin: 0 auto;
+            margin-top: 20px; /* Отступ сверху для кнопок в модалках */
+        }
+
+        button.retryBtn:hover,
+        button.closeInfoBtn:hover,
+        button.quickSpinStartBtn:hover {
+            background: linear-gradient(to bottom, #d02020, #a00000);
+        }
+
+        button.retryBtn:active,
+        button.closeInfoBtn:active,
+        button.quickSpinStartBtn:active {
+            transform: scale(0.95) translateY(2px);
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+        }
+
+        /* --- Контейнер для JACKPOT! текста и кнопки --- */
+        #jackpotContent {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            z-index: 1002;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            opacity: 0;
+            visibility: hidden;
+            pointer-events: none;
+            transition: opacity 0.5s ease-in-out, visibility 0.5s ease-in-out;
+        }
+
+        #jackpotContent.show {
+            opacity: 1;
+            visibility: visible;
+            pointer-events: auto;
+        }
+
+        /* --- JACKPOT! Text Element (внутри #jackpotContent) --- */
+        #jackpotText {
+            font-size: 6em;
+            font-weight: bold;
+            text-shadow: 0 0 10px rgba(255, 215, 0, 0.8), 0 0 20px rgba(255, 165, 0, 0.7), 0 0 30px rgba(255, 69, 0, 0.6);
+            white-space: nowrap;
+            margin-bottom: 20px;
+        }
+
+        @keyframes jackpotGrow {
+            0% {
+                transform: scale(0.1);
+                opacity: 0;
+            }
+            50% {
+                transform: scale(1.2);
+                opacity: 1;
+            }
+            100% {
+                transform: scale(1);
+                opacity: 1;
+            }
+        }
+
+        /* Анимация переливающегося золотого цвета для JACKPOT! */
+        @keyframes jackpotColorChange {
+            0% { color: gold; text-shadow: 0 0 10px gold, 0 0 20px orange, 0 0 30px red; }
+            25% { color: #FFD700; text-shadow: 0 0 12px #FFD700, 0 0 25px #FFA500, 0 0 35px #FF4500; }
+            50% { color: #FFC107; text-shadow: 0 0 15px #FFC107, 0 0 30px #FF8C00, 0 0 40px #E60000; }
+            75% { color: #FFD700; text-shadow: 0 0 12px #FFD700, 0 0 25px #FFA500, 0 0 35px #FF4500; }
+            100% { color: gold; text-shadow: 0 0 10px gold, 0 0 20px orange, 0 0 30px red; }
+        }
+
+        /* --- Оверлей для помутнения --- */
+        #jackpotOverlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0);
+            backdrop-filter: blur(0px);
+            z-index: 998;
+            opacity: 0;
+            visibility: hidden;
+            transition: background-color 1s ease-in-out, backdrop-filter 1s ease-in-out, opacity 1s ease-in-out, visibility 1s ease-in-out;
+        }
+
+        #jackpotOverlay.active {
+            background-color: rgba(0, 0, 0, 0.75);
+            backdrop-filter: blur(8px);
+            opacity: 1;
+            visibility: visible;
+        }
+
+
+        /* --- Конфетти --- */
+        .confetti-container {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            overflow: hidden;
+            z-index: 999;
+        }
+
+        .confetti {
+            position: absolute;
+            width: 8px;
+            height: 8px;
+            background-color: gold;
+            border-radius: 50%;
+            opacity: 0;
+            animation: fall 3s ease-out forwards;
+            top: -20px;
+        }
+
+        .confetti:nth-child(2n) { background-color: #ffd700; border-radius: 0; }
+        .confetti:nth-child(3n) { background-color: #ffbf00; border-radius: 20%; }
+        .confetti:nth-child(4n) { background-color: #ff9900; }
+
+
+        @keyframes fall {
+            0% {
+                transform: translate(var(--x), var(--y)) rotate(0deg);
+                opacity: 0;
+            }
+            10% {
+                opacity: 1;
+            }
+            100% {
+                transform: translate(var(--x), calc(100vh + var(--y))) rotate(720deg);
+                opacity: 0;
+            }
+        }
+
+        /* --- Анимация монеток для обычных выигрышей --- */
+        .coin-animation-container {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            overflow: hidden;
+            z-index: 99; /* Ниже джекпота, но выше слотов */
+        }
+
+        .coin {
+            position: absolute;
+            width: 20px;
+            height: 20px;
+            background-color: gold;
+            border-radius: 50%;
+            box-shadow: 0 0 5px orange;
+            animation: coinFall 1.5s ease-in forwards;
+            opacity: 0;
+            top: -30px; /* Начинаем над верхним краем контейнера */
+        }
+
+        .coin.star {
+            background-color: transparent;
+            box-shadow: none;
+            font-size: 20px;
+            color: #FFD700;
+            text-shadow: 0 0 5px orange;
+            content: '⭐'; /* Используем как символ */
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 0; /* Не круглая */
+        }
+
+        @keyframes coinFall {
+            0% {
+                transform: translate(var(--coin-x), 0) scale(0.5) rotate(0deg);
+                opacity: 0;
+            }
+            20% {
+                opacity: 1;
+                transform: translate(var(--coin-x), 20px) scale(1) rotate(45deg);
+            }
+            100% {
+                transform: translate(var(--coin-x), 100vh) scale(0.8) rotate(360deg);
+                opacity: 0;
+            }
+        }
+
+
+        /* --- Кнопки множителя шансов --- */
+        .multiplier-buttons {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            margin-top: 15px;
+            margin-bottom: 15px;
+        }
+
+        .multiplier-btn {
+            background: linear-gradient(135deg, #4CAF50, #2E8B57);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            padding: 10px 15px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            box-shadow: 0 3px 8px rgba(0, 0, 0, 0.3);
+            user-select: none;
+        }
+
+        .multiplier-btn:hover:not(.selected):not(.disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 10px rgba(0, 0, 0, 0.4);
+        }
+
+        .multiplier-btn:active:not(.selected):not(.disabled) {
+            transform: scale(0.98);
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.3);
+        }
+
+        .multiplier-btn.selected {
+            background: gray !important;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: inset 0 2px 5px rgba(0, 0, 0, 0.4);
+        }
+
+        .multiplier-btn.disabled {
+            background: #555 !important;
+            cursor: not-allowed;
+            opacity: 0.7;
+        }
+
+        /* --- Водяной знак --- */
+        .watermark {
+            position: absolute;
+            bottom: 10px;
+            left: 50%;
+            transform: translateX(-50%);
+            color: rgba(255, 255, 255, 0.3);
+            font-size: 12px;
+            text-shadow: 0 0 5px rgba(0, 0, 0, 0.5);
+            pointer-events: none;
+            white-space: nowrap;
+        }
+
+        /* --- Кнопка Инфо --- */
+        #infoBtn {
+            position: absolute;
+            top: 15px;
+            right: 15px;
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            background: rgba(0, 0, 0, 0.6);
+            color: white;
+            font-size: 18px;
+            font-weight: bold;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            user-select: none;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
+            transition: background 0.3s, transform 0.2s;
+        }
+
+        #infoBtn:hover {
+            background: rgba(0, 0, 0, 0.8);
+            transform: scale(1.05);
+        }
+
+        /* --- Секция правил выигрыша --- */
+        .rules-container {
+            display: grid;
+            grid-template-columns: 1fr 1fr; /* Два столбца */
+            gap: 15px; /* Отступ между прямоугольниками */
+            margin-top: 20px; /* Отступ от слот-машины */
+            width: 90%; /* Ширина контейнера правил */
+            max-width: 600px; /* Максимальная ширина для больших экранов */
+            padding: 10px;
+            border-radius: 15px;
+            /* Слегка отличается от фона, но видно */
+            background: rgba(0, 0, 0, 0.3);
+            box-shadow: 0 0 15px rgba(0, 0, 0, 0.5);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .rule-box {
+            background: rgba(0, 0, 0, 0.4); /* Чуть темнее чем контейнер */
+            border-radius: 10px;
+            padding: 15px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            box-shadow: inset 0 0 8px rgba(0, 0, 0, 0.6);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            position: relative; /* Для надписи */
+        }
+
+        .rule-title {
+            position: absolute;
+            top: 5px;
+            left: 10px;
+            font-size: 10px;
+            color: rgba(255, 255, 255, 0.6);
+            white-space: nowrap;
+        }
+
+        .rule-content {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 5px; /* Отступ между картинками и знаком */
+            margin-top: 10px; /* Отступ от заголовка правила */
+        }
+
+        .rule-content img {
+            width: 35px; /* Размер картинок в правилах */
+            height: 35px;
+            object-fit: contain;
+            filter: drop-shadow(0 0 5px rgba(255, 255, 255, 0.5));
+        }
+
+        .rule-content span.equals {
+            font-size: 24px;
+            font-weight: bold;
+            color: gold;
+            margin: 0 5px;
+            text-shadow: 0 0 5px orange;
+        }
+
+        .rule-content span.result-text {
+            font-size: 20px;
+            font-weight: bold;
+            color: #FFD700; /* Золотой цвет для результата */
+            text-shadow: 0 0 8px #FFA500;
+        }
+
+        /* Баланс и кнопка пополнения */
+        #balanceContainer {
+            position: absolute;
+            top: 15px;
+            left: 15px;
+            display: flex;
+            align-items: center;
+            background: rgba(0, 0, 0, 0.6);
+            border-radius: 20px;
+            padding: 5px 12px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
+            color: white;
+            font-weight: bold;
+            font-size: 16px;
+            z-index: 11; /* Выше слота */
+        }
+
+        #balanceAmount {
+            margin-left: 5px; /* Отступ от иконки звезд */
+            margin-right: 5px; /* Отступ от кнопки минус */
+        }
+
+        #balanceIcon {
+            height: 1.2em;
+            vertical-align: middle;
+            margin-right: 2px; /* Отступ от текста баланса */
+        }
+
+        #addBalanceBtn,
+        #subtractBalanceBtn { /* Общие стили для кнопок +/- */
+            background: linear-gradient(45deg, #00b050, #00803c); /* Всегда зеленые */
+            border: none;
+            border-radius: 50%;
+            width: 25px;
+            height: 25px;
+            font-size: 20px;
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            box-shadow: 0 0 5px rgba(0, 0, 0, 0.5);
+            transition: transform 0.2s;
+            margin: 0 2px; /* Уменьшаем отступ между кнопками */
+        }
+
+        #addBalanceBtn:hover,
+        #subtractBalanceBtn:hover {
+            transform: scale(1.1);
+        }
+
+        /* Модалка пополнения баланса */
+        #depositModalOverlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.75);
+            backdrop-filter: blur(5px);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1003;
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.3s ease-out, visibility 0.3s ease-out;
+        }
+
+        #depositModalOverlay.show {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        #depositModalWindow {
+            background: rgba(20, 20, 20, 0.95);
+            border-radius: 15px;
+            padding: 25px;
+            max-width: 300px;
+            text-align: center;
+            color: white;
+            box-shadow: 0 0 30px #00aaff;
+            position: relative;
+        }
+
+        #depositModalWindow input {
+            width: calc(100% - 20px);
+            padding: 10px;
+            margin: 15px 0;
+            border-radius: 5px;
+            border: 1px solid #ccc;
+            background: #333;
+            color: white;
+            font-size: 16px;
+        }
+
+        #depositModalWindow button {
+            background: linear-gradient(to bottom, #00b050, #00803c);
+            border: none;
+            padding: 10px 15px;
+            border-radius: 8px;
+            font-weight: bold;
+            color: white;
+            cursor: pointer;
+            font-size: 16px;
+            transition: all 0.3s;
+        }
+
+        #depositModalWindow button:hover {
+            background: linear-gradient(to bottom, #00803c, #005f2b);
+        }
+
+        #depositModalWindow .closeBtn {
+            position: absolute;
+            top: 10px;
+            right: 15px;
+            font-size: 22px;
+            font-weight: bold;
+            color: #ccc;
+            cursor: pointer;
+            user-select: none;
+            transition: color 0.3s;
+        }
+
+        #depositModalWindow .closeBtn:hover {
+            color: #00eaff;
+        }
+
+        /* Модалка для "Скоро будет доступно!" */
+        #soonAvailableModalOverlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.75);
+            backdrop-filter: blur(5px);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1007; /* Высокий z-index */
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.3s ease-out, visibility 0.3s ease-out;
+        }
+
+        #soonAvailableModalOverlay.show {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        #soonAvailableModalWindow {
+            background: rgba(20, 20, 20, 0.95);
+            border-radius: 15px;
+            padding: 25px;
+            max-width: 300px;
+            text-align: center;
+            color: white;
+            box-shadow: 0 0 30px #90a4ae; /* Серый оттенок свечения */
+            position: relative;
+        }
+
+        #soonAvailableModalWindow .closeBtn {
+            position: absolute;
+            top: 10px;
+            right: 15px;
+            font-size: 22px;
+            font-weight: bold;
+            color: #ccc;
+            cursor: pointer;
+            user-select: none;
+            transition: color 0.3s;
+        }
+
+        #soonAvailableModalWindow .closeBtn:hover {
+            color: #90a4ae;
+        }
+
+        #soonAvailableModalWindow p {
+            font-size: 20px;
+            font-weight: bold;
+            color: #e0e0e0;
+            text-shadow: 0 0 10px rgba(144, 164, 174, 0.5);
+            margin-bottom: 0;
+        }
+
+
+        /* Адаптивность */
+        @media (max-width: 500px) {
+            .slot {
+                width: 70px;
+                height: 110px;
+            }
+
+            .lever {
+                width: 80px;
+                height: 80px;
+                font-size: 18px;
+            }
+
+            .lever-price {
+                font-size: 12px;
+            }
+
+            .small-round-btn {
+                width: 40px;
+                height: 40px;
+                font-size: 12px;
+            }
+
+            .quick-commission {
+                bottom: -15px;
+                font-size: 9px;
+            }
+
+            #jackpotText {
+                font-size: 4em;
+            }
+
+            .multiplier-btn {
+                padding: 8px 12px;
+                font-size: 14px;
+            }
+
+            .spin-controls {
+                gap: 10px;
+            }
+
+            .watermark {
+                font-size: 10px;
+                bottom: 5px;
+            }
+
+            #infoBtn {
+                width: 25px;
+                height: 25px;
+                font-size: 16px;
+                top: 10px;
+                right: 10px;
+            }
+
+            #infoModalWindow {
+                max-width: 90%;
+                padding: 15px;
+                max-height: 85vh; /* Адаптивность для высоты модалки */
+            }
+
+            #infoModalWindow p,
+            #infoModalWindow ul li {
+                font-size: 12px;
+            }
+
+            #infoModalWindow ul li img {
+                height: 16px;
+                width: 16px;
+            }
+
+            .disclaimer-module {
+                font-size: 11px;
+                padding: 8px;
+            }
+
+            .rules-container {
+                grid-template-columns: 1fr; /* Один столбец на мобильных */
+                width: 95%;
+                gap: 10px;
+            }
+
+            .rule-box {
+                padding: 10px;
+            }
+
+            .rule-title {
+                font-size: 9px;
+                top: 3px;
+                left: 8px;
+            }
+
+            .rule-content img {
+                width: 30px;
+                height: 30px;
+            }
+
+            .rule-content span.equals,
+            .rule-content span.result-text {
+                font-size: 20px;
+            }
+
+            .symbol-grid {
+                max-height: 150px;
+                gap: 5px;
+            }
+
+            .symbol-item {
+                height: 70px;
+            }
+
+            .symbol-item img {
+                max-width: 50px;
+                max-height: 50px;
+            }
+
+            .symbol-item span {
+                font-size: 10px;
+            }
+
+            #balanceContainer {
+                font-size: 14px;
+                padding: 3px 10px;
+            }
+
+            #addBalanceBtn, #subtractBalanceBtn {
+                width: 20px;
+                height: 20px;
+                font-size: 16px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div id="balanceContainer">
+        <span id="balanceAmount">0</span>
+        <img src="images/stars.png" alt="stars icon" id="balanceIcon">
+        <button id="addBalanceBtn">+</button>
+        <button id="subtractBalanceBtn">-</button>
+    </div>
+
+    <div class="slot-machine">
+        <h1>
+            <div class="slot-icon">
+                <div class="slot-icon-reel"></div>
+                <div class="slot-icon-reel"></div>
+                <div class="slot-icon-reel"></div>
+            </div>
+            GiftSlots
+        </h1>
+        <div class="slots">
+            <div class="slot" id="slot1">
+                <div class="slot-value"></div>
+            </div>
+            <div class="slot" id="slot2">
+                <div class="slot-value"></div>
+            </div>
+            <div class="slot" id="slot3">
+                <div class="slot-value"></div>
+            </div>
+        </div>
+
+        <div class="spin-controls">
+            <button class="small-round-btn" id="demoBtn">Demo</button>
+            <div class="lever" id="lever">
+                <span class="lever-text">PLAY!</span>
+                <span class="lever-price" id="leverPrice">10<img src="images/stars.png" alt="stars"></span>
+            </div>
+            <button class="small-round-btn" id="quickBtn">Quick
+                <span class="quick-commission">+1<img src="images/stars.png" alt="stars"></span>
+            </button>
+        </div>
+
+        <div class="multiplier-buttons">
+            <button class="multiplier-btn selected" data-multiplier="1">1x</button>
+            <button class="multiplier-btn" data-multiplier="2">2x</button>
+            <button class="multiplier-btn" data-multiplier="5">5x</button>
+        </div>
+
+        <div class="result" id="result"></div>
+
+        <div class="watermark">@GiftSlotsBot</div>
+
+        <div id="infoBtn">i</div>
+    </div>
+
+    <div class="rules-container">
+        <div class="rule-box">
+            <div class="rule-title">3x Gift = this gift</div>
+            <div class="rule-content">
+                <img src="images/pepe.png" alt="pepe">
+                <img src="images/pepe.png" alt="pepe">
+                <img src="images/pepe.png" alt="pepe">
+                <span class="equals">=</span>
+                <img src="images/pepe.png" alt="pepe">
+            </div>
+        </div>
+
+        <div class="rule-box">
+            <div class="rule-title">3x any NFTs = 5 stars</div>
+            <div class="rule-content">
+                <img src="images/pepe.png" alt="any NFT">
+                <img src="images/cap.png" alt="any NFT">
+                <img src="images/ion.png" alt="any NFT">
+                <span class="equals">=</span>
+                <span class="result-text">5</span>
+                <img src="images/stars.png" alt="stars">
+            </div>
+        </div>
+
+        <div class="rule-box">
+            <div class="rule-title">2x NFT = x2</div>
+            <div class="rule-content">
+                <img src="images/pepe.png" alt="pepe">
+                <img src="images/pepe.png" alt="pepe">
+                <img src="images/stars.png" alt="stars">
+                <span class="equals">=</span>
+                <span class="result-text">x2</span>
+            </div>
+        </div>
+
+        <div class="rule-box">
+            <div class="rule-title">2x NFT + Any nft = x5</div>
+            <div class="rule-content">
+                <img src="images/shard.png" alt="shard">
+                <img src="images/shard.png" alt="shard">
+                <img src="images/grib.png" alt="grib">
+                <span class="equals">=</span>
+                <span class="result-text">x5</span>
+            </div>
+        </div>
+    </div>
+
+    <div id="jackpotContent">
+        <div id="jackpotText">JACKPOT!</div>
+        <button class="retryBtn" id="jackpotRetryBtn">Попробовать ещё раз</button>
+    </div>
+
+    <div id="confettiContainer" class="confetti-container"></div>
+
+    <div id="coinAnimationContainer" class="coin-animation-container"></div>
+
+    <div id="jackpotOverlay"></div>
+
+    <div id="modalOverlay">
+        <div id="modalWindow">
+            <div class="closeBtn" id="modalClose">&times;</div>
+            <div class="modalResult" id="modalResult"></div>
+            <button class="retryBtn" id="modalRetryBtn">Попробовать ещё раз</button>
+        </div>
+    </div>
+
+    <div id="infoModalOverlay">
+        <div id="infoModalWindow">
+            <h2>Как играть?</h2>
+            <div class="info-section">
+                <p><span class="highlight">Слот-машина:</span> Выбирайте множитель шансов за дополнительную плату (1x, 2x, 5x) и нажимайте "PLAY!" для запуска барабанов. 1 Прокрут стоит 10 <img src="images/stars.png" alt="stars" style="height: 1.2em; vertical-align: middle;"></p>
+                <ul>
+                    <li>• <span class="highlight">Demo:</span> Бесплатный спин для ознакомления.</li>
+                    <li>• <span class="highlight">Quick:</span> Мгновенный спин без анимаций, результат показывается сразу.</li>
+                </ul>
+            </div>
+            <div class="info-section">
+                <p><span class="highlight">Комбинации:</span></p>
+                <ul>
+                    <li>• <span class="highlight">3x Одинаковых NFT</span> - Jackpot</li>
+                    <li>• <span class="highlight">3x Любых NFT</span> - 5 <img src="images/stars.png" alt="stars" style="height: 1.2em; vertical-align: middle;"></li>
+                    <li>• <span class="highlight">2x Одинаковых NFT</span> - x2</li>
+                    <li>• <span class="highlight">2x Одинаковых NFT + Любой NFT</span> = 5x</li>
+                </ul>
+            </div>
+            <div class="symbol-gallery">
+                <h3>Возможные Выигрыши</h3>
+                <div class="symbol-grid" id="symbolGalleryGrid">
+                    </div>
+            </div>
+            <div class="disclaimer-module">
+                ! Мы всячески осуждаем азартные игры и лудоманию, проект создан исключительно в развлекательных целях. Вся ответственность за ваши звёзды строго на вас.
+            </div>
+            <button class="closeInfoBtn" id="closeInfoBtn">Закрыть</button>
+        </div>
+    </div>
+
+    <div id="depositModalOverlay" style="display: none;">
+        <div id="depositModalWindow">
+            <div class="closeBtn" id="depositModalClose">&times;</div>
+            <h2>Пополнить баланс</h2>
+            <p>Введите количество звёзд:</p>
+            <input type="number" id="depositAmountInput" min="1" value="100">
+            <button id="confirmDepositBtn">Пополнить</button>
+        </div>
+    </div>
+
+    <div id="depositConfirmModalOverlay" style="display: none;">
+        <div id="depositConfirmModalWindow">
+            <h2>Подтверждение пополнения</h2>
+            <p class="confirm-message" id="depositConfirmMessage"></p>
+            <div class="confirm-buttons">
+                <button id="confirmDepositYes">Я перевел</button>
+                <button id="confirmDepositNo">Отмена</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="soonAvailableModalOverlay">
+        <div id="soonAvailableModalWindow">
+            <div class="closeBtn" id="soonAvailableModalClose">&times;</div>
+            <p>Скоро будет доступно!</p>
+        </div>
+    </div>
+
+
+    <script>
+        const symbols = [
+            'images/pepe.png',
+            'images/frog.png',
+            'images/peach.png',
+            'images/watch.png',
+            'images/evileye.png',
+            'images/shard.png',
+            'images/cigare.png',
+            'images/desk.png',
+            'images/ring.png',
+            'images/lolpop.png',
+            'images/cake.png',
+            'images/stars.png',
+            'images/manystars.png',
+            'images/santahat.png',
+            'images/hat.png',
+            'images/candle.png',
+            'images/grib.png',
+            'images/cap.png',
+            'images/ion.png',
+        ];
+
+        // Определяем, какие символы являются NFT
+        const nftSymbols = symbols.filter(symbol =>
+            symbol !== 'images/stars.png' && symbol !== 'images/manystars.png'
+        );
+
+        const slots = [
+            document.getElementById("slot1"),
+            document.getElementById("slot2"),
+            document.getElementById("slot3")
+        ];
+        const lever = document.getElementById("lever");
+        const leverPriceDisplay = document.getElementById("leverPrice");
+        const demoBtn = document.getElementById("demoBtn");
+        const quickBtn = document.getElementById("quickBtn");
+
+        const result = document.getElementById("result");
+        const modalOverlay = document.getElementById("modalOverlay");
+        const modalResult = document.getElementById("modalResult");
+        const modalClose = document.getElementById("modalClose");
+        const modalRetryBtn = document.getElementById("modalRetryBtn");
+
+        const jackpotContent = document.getElementById("jackpotContent");
+        const jackpotText = document.getElementById("jackpotText");
+        const jackpotRetryBtn = document.getElementById("jackpotRetryBtn");
+
+        const confettiContainer = document.getElementById("confettiContainer");
+        const coinAnimationContainer = document.getElementById("coinAnimationContainer");
+        const jackpotOverlay = document.getElementById("jackpotOverlay");
+
+        const multiplierButtons = document.querySelectorAll(".multiplier-btn");
+        let currentMultiplier = 1;
+        const baseSpinCost = 10; // Базовая стоимость спина
+
+        let isSpinning = false;
+        let isDemoMode = false; // Состояние демо-режима
+        let spinCount = 0;
+
+        // Элементы для окна инфо
+        const infoBtn = document.getElementById("infoBtn");
+        const infoModalOverlay = document.getElementById("infoModalOverlay");
+        const closeInfoBtn = document.getElementById("closeInfoBtn");
+        const symbolGalleryGrid = document.getElementById("symbolGalleryGrid");
+
+        // Элементы баланса
+        const balanceAmountDisplay = document.getElementById("balanceAmount");
+        const addBalanceBtn = document.getElementById("addBalanceBtn");
+        const subtractBalanceBtn = document.getElementById("subtractBalanceBtn"); // Новая кнопка Минус
+        let userBalance = 0; // Начальный баланс
+
+        // Модалка пополнения баланса (ввод суммы) - Скрыто
+        const depositModalOverlay = document.getElementById("depositModalOverlay");
+        const depositModalClose = document.getElementById("depositModalClose");
+        const depositAmountInput = document.getElementById("depositAmountInput");
+        const confirmDepositBtn = document.getElementById("confirmDepositBtn");
+
+        // Модалка подтверждения пополнения - Скрыто
+        const depositConfirmModalOverlay = document.getElementById("depositConfirmModalOverlay");
+        const depositConfirmModalWindow = document.getElementById("depositConfirmModalWindow");
+        const depositConfirmMessage = document.getElementById("depositConfirmMessage");
+        const confirmDepositYesBtn = document.getElementById("confirmDepositYes");
+        const confirmDepositNoBtn = document.getElementById("confirmDepositNo");
+
+        // Комиссия Quick спина
+        const quickSpinCommission = 1;
+
+        // Новое модальное окно "Скоро будет доступно!"
+        const soonAvailableModalOverlay = document.getElementById('soonAvailableModalOverlay');
+        const soonAvailableModalClose = document.getElementById('soonAvailableModalClose');
+
+
+        // Telegram Web App
+        const tg = window.Telegram.WebApp;
+        tg.ready();
+        tg.expand();
+        tg.enableClosingConfirmation();
+
+        // Загрузка баланса при запуске
+        function loadBalance() {
+            const savedBalance = localStorage.getItem('userBalance');
+            if (savedBalance !== null) {
+                userBalance = parseInt(savedBalance);
+            } else {
+                userBalance = 1000; // Начальный баланс 1000 для тестирования
+            }
+            updateBalanceDisplay();
+        }
+
+        // Сохранение баланса
+        function saveBalance() {
+            localStorage.setItem('userBalance', userBalance);
+        }
+
+        // Обработчик события из Telegram (для пополнения) - Больше не используется
+        // tg.onEvent('invoiceClosed', function (status) { ... });
+
+
+        function getSymbolImage(symbolPath) {
+            if (!symbolPath) return '';
+            return `<img src="${symbolPath}" alt="slot symbol">`;
+        }
+
+        // Предварительная загрузка изображений
+        function preloadImages(imagePaths) {
+            imagePaths.forEach(path => {
+                const img = new Image();
+                img.src = path;
+            });
+        }
+
+        // Заполнение галереи символов
+        function populateSymbolGallery() {
+            const symbolsForGallery = symbols.filter(s => s !== 'images/manystars.png'); // Исключаем manystars.png
+            symbolGalleryGrid.innerHTML = ''; // Очищаем перед заполнением
+
+            symbolsForGallery.forEach(symbolPath => {
+                const symbolItem = document.createElement('div');
+                symbolItem.classList.add('symbol-item');
+                let textContent = '';
+
+                if (symbolPath === 'images/stars.png') {
+                    textContent = '5-250';
+                }
+
+                symbolItem.innerHTML = `<img src="${symbolPath}" alt="${symbolPath.split('/').pop().split('.')[0]}"><span>${textContent}</span>`;
+                symbolGalleryGrid.appendChild(symbolItem);
+            });
+        }
+
+
+        window.addEventListener('DOMContentLoaded', () => {
+            preloadImages(symbols); // Загружаем все изображения символов при старте
+            slots.forEach(slot => {
+                const slotElement = slot.querySelector(".slot-value");
+                const randomSymbolPath = symbols[Math.floor(Math.random() * symbols.length)];
+                slotElement.innerHTML = getSymbolImage(randomSymbolPath);
+                slotElement.classList.add('visible');
+            });
+            loadBalance(); // Загружаем баланс при старте
+            updateLeverPrice(); // Обновляем цену при загрузке
+            enableAllButtons();
+            document.querySelector('.multiplier-btn[data-multiplier="1"]').classList.add('selected');
+            jackpotContent.classList.remove('show');
+            populateSymbolGallery(); // Заполняем галерею символов при загрузке
+        });
+
+        function updateBalanceDisplay() {
+            balanceAmountDisplay.textContent = userBalance;
+            saveBalance(); // Сохраняем баланс при каждом изменении
+        }
+
+        function updateLeverPrice() {
+            let cost = baseSpinCost;
+            if (currentMultiplier === 2) {
+                cost = 20; // 10 (base) + 10 (for 2x)
+            } else if (currentMultiplier === 5) {
+                cost = 50; // 10 (base) + 40 (for 5x)
+            }
+            leverPriceDisplay.innerHTML = `${cost}<img src="images/stars.png" alt="stars">`;
+        }
+
+
+        function spinSlot(slot, duration, finalSymbolPath, isQuickSpin = false) {
+            return new Promise((resolve) => {
+                const slotElement = slot.querySelector(".slot-value");
+                const slotImg = slotElement.querySelector("img");
+
+                if (slotImg) {
+                    slotImg.classList.remove("jackpot-img-glow", "win-glow"); // Удаляем все анимации свечения
+                }
+
+                if (!isQuickSpin) {
+                    slotElement.classList.remove("visible");
+                    slot.classList.add("spinning");
+
+                    let currentSymbolIndex = 0;
+                    const interval = setInterval(() => {
+                        currentSymbolIndex = (currentSymbolIndex + 1) % symbols.length;
+                        slotElement.innerHTML = getSymbolImage(symbols[currentSymbolIndex]);
+                    }, 50);
+
+                    setTimeout(() => {
+                        clearInterval(interval);
+                        slot.classList.remove("spinning");
+                        slotElement.innerHTML = getSymbolImage(finalSymbolPath);
+                        slotElement.classList.add("visible");
+                        resolve(finalSymbolPath);
+                    }, duration);
+                } else {
+                    // Для быстрого спина сразу устанавливаем финальный символ
+                    slotElement.innerHTML = getSymbolImage(finalSymbolPath);
+                    slotElement.classList.add("visible");
+                    resolve(finalSymbolPath);
+                }
+            });
+        }
+
+        async function startSpin(isQuickSpin = false) {
+            if (isSpinning) return; // Не позволяем повторный спин, если уже крутится
+
+            const spinCost = currentMultiplier === 1 ? baseSpinCost : (currentMultiplier === 2 ? 20 : 50);
+            const totalCost = spinCost + (isQuickSpin ? quickSpinCommission : 0); // Комиссия только для Quick
+
+            if (!isDemoMode) {
+                if (userBalance < totalCost) {
+                    showModal("Недостаточно средств. Пополните баланс!");
+                    return;
+                }
+                userBalance -= totalCost;
+                updateBalanceDisplay();
+            }
+
+            isSpinning = true;
+            disableAllButtons();
+
+            jackpotText.style.animation = 'none';
+            jackpotText.style.opacity = '0';
+            jackpotText.offsetHeight;
+            confettiContainer.innerHTML = '';
+            coinAnimationContainer.innerHTML = ''; // Очищаем контейнер монеток
+            jackpotOverlay.classList.remove('active');
+            jackpotContent.classList.remove('show');
+
+            slots.forEach(slot => {
+                const img = slot.querySelector(".slot-value img");
+                if (img) img.classList.remove("jackpot-img-glow", "win-glow");
+            });
+
+            spinCount++;
+
+            lever.style.background = "linear-gradient(135deg, #d02020, #a00000)";
+            setTimeout(() => {
+                lever.style.background = "linear-gradient(135deg, #f05050, #d02020)";
+            }, 300);
+
+            let finalValues = [];
+            // Логика определения finalValues с учетом новых шансов
+            if (isDemoMode) {
+                // В демо-режиме просто случайные символы
+                finalValues = [
+                    symbols[Math.floor(Math.random() * symbols.length)],
+                    symbols[Math.floor(Math.random() * symbols.length)],
+                    symbols[Math.floor(Math.random() * symbols.length)]
+                ];
+            } else {
+                const rand = Math.random();
+                if (rand < 0.00000000001) { // Джекпот (очень низкий шанс)
+                    const randomNft = nftSymbols[Math.floor(Math.random() * nftSymbols.length)];
+                    finalValues = [randomNft, randomNft, randomNft];
+                } else if (rand < 0.00000000001 + 0.001 * currentMultiplier) { // x5 (0.1% * множитель)
+                    const randomNft = nftSymbols[Math.floor(Math.random() * nftSymbols.length)];
+                    let otherNft = nftSymbols[Math.floor(Math.random() * nftSymbols.length)];
+                    while (otherNft === randomNft) {
+                        otherNft = nftSymbols[Math.floor(Math.random() * nftSymbols.length)];
+                    }
+                    finalValues = [randomNft, randomNft, otherNft];
+                    finalValues.sort(() => Math.random() - 0.5); // Перемешиваем
+                } else if (rand < 0.00000000001 + 0.001 * currentMultiplier + 0.02 * currentMultiplier) { // x2 (2% * множитель)
+                    const randomNft = nftSymbols[Math.floor(Math.random() * nftSymbols.length)];
+                    let nonNftSymbol = symbols.find(s => !nftSymbols.includes(s)); // Находим не-NFT
+                    if (!nonNftSymbol) nonNftSymbol = 'images/stars.png'; // Запасной вариант - звезды
+                    finalValues = [randomNft, randomNft, nonNftSymbol];
+                    finalValues.sort(() => Math.random() - 0.5); // Перемешиваем
+                } else if (rand < 0.00000000001 + 0.001 * currentMultiplier + 0.02 * currentMultiplier + 0.15 * currentMultiplier) { // 3 любых NFT (15% * множитель)
+                    let s1 = nftSymbols[Math.floor(Math.random() * nftSymbols.length)];
+                    let s2 = nftSymbols[Math.floor(Math.random() * nftSymbols.length)];
+                    let s3 = nftSymbols[Math.floor(Math.random() * nftSymbols.length)];
+
+                    // Убеждаемся, что они разные, чтобы не пересекаться с x5 или джекпотом
+                    let attempts = 0;
+                    while ((s1 === s2 || s1 === s3 || s2 === s3 || (s1 === s2 && s2 === s3)) && attempts < 100) { // Исправлена логика для 3 одинаковых
+                        s1 = nftSymbols[Math.floor(Math.random() * nftSymbols.length)];
+                        s2 = nftSymbols[Math.floor(Math.random() * nftSymbols.length)];
+                        s3 = nftSymbols[Math.floor(Math.random() * nftSymbols.length)];
+                        attempts++;
+                    }
+                    if (attempts === 100) { // Если не удалось найти 3 разных NFT, делаем случайный набор
+                        finalValues = [
+                            symbols[Math.floor(Math.random() * symbols.length)],
+                            symbols[Math.floor(Math.random() * symbols.length)],
+                            symbols[Math.floor(Math.random() * symbols.length)]
+                        ];
+                    } else {
+                        finalValues = [s1, s2, s3];
+                        finalValues.sort(() => Math.random() - 0.5);
+                    }
+                } else { // Проигрыш
+                    finalValues = [
+                        symbols[Math.floor(Math.random() * symbols.length)],
+                        symbols[Math.floor(Math.random() * symbols.length)],
+                        symbols[Math.floor(Math.random() * symbols.length)]
+                    ];
+                    // Гарантируем проигрыш: чтобы не было 3 одинаковых, 2 одинаковых + 1 не NFT, 3 разных NFT
+                    let attempts = 0;
+                    while (getResultType(finalValues) !== "LOSE" && attempts < 100) {
+                        finalValues = [
+                            symbols[Math.floor(Math.random() * symbols.length)],
+                            symbols[Math.floor(Math.random() * symbols.length)],
+                            symbols[Math.floor(Math.random() * symbols.length)]
+                        ];
+                        attempts++;
+                    }
+                }
+            }
+
+
+            const baseDuration = 3000;
+            const stopDelayIncrement = 500;
+
+            const spinPromises = [];
+
+            if (!isQuickSpin) {
+                spinPromises.push(spinSlot(slots[0], baseDuration, finalValues[0]));
+                spinPromises.push(spinSlot(slots[1], baseDuration + stopDelayIncrement, finalValues[1]));
+                spinPromises.push(spinSlot(slots[2], baseDuration + stopDelayIncrement * 2, finalValues[2]));
+            } else {
+                // Для Quick Spin просто сразу устанавливаем финальные значения
+                slots[0].querySelector(".slot-value").innerHTML = getSymbolImage(finalValues[0]);
+                slots[0].querySelector(".slot-value").classList.add("visible");
+                slots[1].querySelector(".slot-value").innerHTML = getSymbolImage(finalValues[1]);
+                slots[1].querySelector(".slot-value").classList.add("visible");
+                slots[2].querySelector(".slot-value").innerHTML = getSymbolImage(finalValues[2]);
+                slots[2].querySelector(".slot-value").classList.add("visible");
+                // Добавляем небольшую задержку, чтобы пользователь успел увидеть результат перед модалкой
+                await new Promise(resolve => setTimeout(resolve, 500));
+            }
+
+
+            const values = isQuickSpin ? finalValues : await Promise.all(spinPromises); // Ждем результатов только для обычного спина
+
+            const resultType = getResultType(values); // Получаем тип выигрыша
+            const resultText = getResultText(resultType, values); // Передаем тип в getResultType
+
+            // Обработка выигрышей
+            if (!isDemoMode) {
+                if (resultType === "WIN_5_STARS") {
+                    userBalance += 5;
+                } else if (resultType === "WIN_X2") {
+                    userBalance += spinCost * 2; // Зачисляем сумму в два раза больше стоимости спина
+                }
+                // Для JACKPOT, WIN_X5 NFT должны быть выданы ботом
+                // В этом приложении мы только отображаем результат
+            }
+
+            if (resultType === "JACKPOT") {
+                slots.forEach(slot => {
+                    const img = slot.querySelector(".slot-value img");
+                    if (img) img.classList.add("jackpot-img-glow");
+                });
+
+                jackpotText.style.animation = 'jackpotGrow 1s ease-out forwards, jackpotColorChange 2s infinite alternate';
+
+                for (let i = 0; i < 50; i++) {
+                    const confetti = document.createElement('div');
+                    confetti.classList.add('confetti');
+                    confetti.style.left = `${Math.random() * 100}vw`;
+                    confetti.style.animationDelay = `${Math.random() * 1.5}s`;
+                    confetti.style.setProperty('--x', `${(Math.random() - 0.5) * 400}px`);
+                    confetti.style.setProperty('--y', `${Math.random() * 50 - 25}px`);
+                    confettiContainer.appendChild(confetti);
+                }
+
+                setTimeout(() => {
+                    jackpotOverlay.classList.add('active');
+                }, 1000);
+
+                setTimeout(() => {
+                    jackpotContent.classList.add('show');
+                    isSpinning = false;
+                    enableAllButtons();
+                    if (isDemoMode) demoBtn.classList.add("active"); // Сохраняем состояние демо-кнопки
+                }, 2000);
+            } else {
+                // Анимация выигрыша для не-джекпотов
+                if (resultType !== "LOSE") {
+                    const winningSlotsIndexes = getWinningSlotsIndexes(resultType, values);
+                    winningSlotsIndexes.forEach(index => {
+                        const img = slots[index].querySelector(".slot-value img");
+                        if (img) img.classList.add("win-glow");
+                    });
+
+                    // Анимация монеток/звезд
+                    const numCoins = (resultType === "WIN_5_STARS" || resultType === "WIN_X2") ? 10 : 15;
+                    const coinTypeClass = (resultType === "WIN_5_STARS" || resultType === "WIN_X2") ? 'star' : '';
+
+                    for (let i = 0; i < numCoins; i++) {
+                        const coin = document.createElement('div');
+                        coin.classList.add('coin', coinTypeClass);
+                        if (coinTypeClass === 'star') {
+                            coin.textContent = '⭐';
+                        }
+                        coin.style.setProperty('--coin-x', `${Math.random() * 100}vw`);
+                        coin.style.animationDelay = `${Math.random() * 0.5}s`;
+                        coinAnimationContainer.appendChild(coin);
+                    }
+                }
+
+                showModal(resultText);
+                isSpinning = false;
+                enableAllButtons();
+                if (isDemoMode) demoBtn.classList.add("active"); // Сохраняем состояние демо-кнопки
+            }
+            updateBalanceDisplay(); // Обновляем баланс после каждого спина
+        }
+
+        function disableAllButtons() {
+            lever.classList.add("disabled");
+            demoBtn.classList.add("disabled"); // Теперь Demo также становится серой
+            quickBtn.classList.add("disabled");
+            multiplierButtons.forEach(btn => btn.classList.add("disabled"));
+            infoBtn.classList.add("disabled"); // Отключаем кнопку инфо во время спина
+            addBalanceBtn.classList.add("disabled"); // Отключаем кнопку пополнения
+            subtractBalanceBtn.classList.add("disabled"); // Отключаем кнопку минуса
+        }
+
+        function enableAllButtons() {
+            lever.classList.remove("disabled");
+            demoBtn.classList.remove("disabled");
+            quickBtn.classList.remove("disabled");
+            multiplierButtons.forEach(btn => btn.classList.remove("disabled"));
+            document.querySelector(`.multiplier-btn[data-multiplier="${currentMultiplier}"]`).classList.add('selected');
+            infoBtn.classList.remove("disabled"); // Включаем кнопку инфо
+            addBalanceBtn.classList.remove("disabled"); // Включаем кнопку пополнения
+            subtractBalanceBtn.classList.remove("disabled"); // Включаем кнопку минуса
+        }
+
+        // Определяет тип выигрыша, а не просто текст
+        function getResultType(values) {
+            const uniqueValues = new Set(values);
+            const nftResults = values.filter(v => nftSymbols.includes(v));
+
+            // Правило 1: 3 одинаковых NFT = Jackpot
+            if (uniqueValues.size === 1 && nftSymbols.includes(values[0])) { // Проверяем, что это именно NFT
+                return "JACKPOT";
+            }
+
+            // Правило 4: 2 одинаковых NFT + любая NFT = x5
+            // Проверяем, что есть ровно 2 одинаковых NFT и 1 другая NFT
+            const counts = {};
+            values.forEach(v => counts[v] = (counts[v] || 0) + 1);
+            let twoSameNft = false;
+            let oneOtherNft = false; // Другая NFT
+            let sameNftSymbol = '';
+
+            for (const key in counts) {
+                if (nftSymbols.includes(key) && counts[key] === 2) {
+                    twoSameNft = true;
+                    sameNftSymbol = key;
+                }
+            }
+            // Проверяем, что третий символ является NFT и отличается от двух одинаковых
+            if (twoSameNft) {
+                const thirdSymbol = values.find(v => v !== sameNftSymbol);
+                if (thirdSymbol && nftSymbols.includes(thirdSymbol)) {
+                    return "WIN_X5";
+                }
+            }
+
+
+            // Правило 2: 3 любые NFT = 5 stars (разные NFT)
+            if (nftResults.length === 3 && uniqueValues.size === 3) {
+                return "WIN_5_STARS";
+            }
+
+            // Правило 3: 2 одинаковых NFT = x2
+            // Здесь нужна проверка, что третий символ НЕ NFT
+            if (nftResults.length === 2 && uniqueValues.size === 2) {
+                const sameCount = {};
+                values.forEach(v => sameCount[v] = (sameCount[v] || 0) + 1);
+                const hasTwoSame = Object.values(sameCount).includes(2);
+                const twoSameNftSymbol = Object.keys(sameCount).find(key => sameCount[key] === 2);
+                const thirdSymbol = Object.keys(sameCount).find(key => sameCount[key] === 1);
+
+                if (hasTwoSame && nftSymbols.includes(twoSameNftSymbol) && !nftSymbols.includes(thirdSymbol)) {
+                    return "WIN_X2";
+                }
+            }
+
+            return "LOSE";
+        }
+
+        // Возвращает текстовое сообщение в зависимости от типа выигрыша
+        function getResultText(type, values) {
+            switch (type) {
+                case "JACKPOT":
+                    return "🎉 ДЖЕКПОТ! Вы получили " + values[0].split('/').pop().split('.')[0].toUpperCase() + " NFT!"; // "PEPE NFT"
+                case "WIN_X5":
+                    return "✨ Большая удача! x5";
+                case "WIN_5_STARS":
+                    return "🌟 Отлично! +5 Stars";
+                case "WIN_X2":
+                    const spinCost = currentMultiplier === 1 ? baseSpinCost : (currentMultiplier === 2 ? 20 : 50);
+                    return `👍 Выигрыш! x2. Вы получили ${spinCost * 2} звезд!`;
+                case "LOSE":
+                default:
+                    return "😢 Попробуйте ещё!";
+            }
+        }
+
+        // Определяет индексы выигрышных слотов для анимации подсветки
+        function getWinningSlotsIndexes(type, values) {
+            const indexes = [];
+
+            if (type === "JACKPOT" || type === "WIN_5_STARS" || type === "WIN_X5") {
+                values.forEach((val, index) => indexes.push(index));
+            } else if (type === "WIN_X2") {
+                const counts = {};
+                values.forEach(v => counts[v] = (counts[v] || 0) + 1);
+                const twoSameNftSymbol = Object.keys(counts).find(key => counts[key] === 2 && nftSymbols.includes(key));
+                if (twoSameNftSymbol) {
+                    values.forEach((val, index) => {
+                        if (val === twoSameNftSymbol) {
+                            indexes.push(index);
+                        }
+                    });
+                }
+            }
+            return indexes;
+        }
+
+        function showModal(text) {
+            modalResult.textContent = text;
+            modalOverlay.classList.add("show");
+            modalRetryBtn.classList.add('show');
+        }
+
+        // Обработчик для кнопки PLAY!
+        lever.addEventListener("click", () => {
+            if (isSpinning) return;
+            startSpin(false);
+        });
+
+        // Обработчик для кнопки DEMO
+        demoBtn.addEventListener("click", () => {
+            if (isSpinning) return;
+
+            isDemoMode = !isDemoMode; // Переключаем состояние демо-режима
+            if (isDemoMode) {
+                demoBtn.classList.add("active"); // Делаем кнопку серой
+                lever.classList.remove("disabled"); // В демо-режиме PLAY всегда активна
+                quickBtn.classList.remove("disabled"); // В демо-режиме Quick всегда активна
+                multiplierButtons.forEach(btn => btn.classList.add("disabled")); // Отключаем множители
+                console.log("Демо-режим ВКЛЮЧЕН");
+            } else {
+                demoBtn.classList.remove("active"); // Возвращаем обычный цвет
+                enableAllButtons(); // Возвращаем все кнопки в обычное состояние
+                console.log("Демо-режим ВЫКЛЮЧЕН");
+            }
+        });
+
+        // Обработчик для кнопки QUICK
+        quickBtn.addEventListener("click", () => {
+            if (isSpinning) return;
+            startSpin(true); // Сразу запускаем быстрый спин
+        });
+
+
+        modalClose.addEventListener("click", () => {
+            modalOverlay.classList.remove("show");
+            modalRetryBtn.classList.remove('show');
+            isSpinning = false;
+            enableAllButtons();
+            slots.forEach(slot => {
+                const img = slot.querySelector(".slot-value img");
+                if (img) img.classList.remove("jackpot-img-glow", "win-glow");
+            });
+            coinAnimationContainer.innerHTML = '';
+            if (isDemoMode) demoBtn.classList.add("active");
+        });
+
+        modalRetryBtn.addEventListener("click", () => {
+            modalOverlay.classList.remove("show");
+            modalRetryBtn.classList.remove('show');
+            isSpinning = false;
+            enableAllButtons();
+            slots.forEach(slot => {
+                const img = slot.querySelector(".slot-value img");
+                if (img) img.classList.remove("jackpot-img-glow", "win-glow");
+            });
+            coinAnimationContainer.innerHTML = '';
+            if (isDemoMode) demoBtn.classList.add("active");
+        });
+
+        jackpotRetryBtn.addEventListener("click", () => {
+            jackpotContent.classList.remove('show');
+            jackpotOverlay.classList.remove('active');
+            isSpinning = false;
+            enableAllButtons();
+            jackpotText.style.animation = 'none';
+            jackpotText.style.opacity = '0';
+            slots.forEach(slot => {
+                const img = slot.querySelector(".slot-value img");
+                if (img) img.classList.remove("jackpot-img-glow", "win-glow");
+            });
+            confettiContainer.innerHTML = '';
+            if (isDemoMode) demoBtn.classList.add("active");
+        });
+
+        multiplierButtons.forEach(button => {
+            button.addEventListener("click", () => {
+                if (isSpinning || isDemoMode) return;
+
+                multiplierButtons.forEach(btn => {
+                    btn.classList.remove("selected");
+                });
+                button.classList.add("selected");
+                currentMultiplier = parseInt(button.dataset.multiplier);
+                updateLeverPrice();
+            });
+        });
+
+        // Обработчики для кнопки инфо
+        infoBtn.addEventListener("click", () => {
+            if (!isSpinning) {
+                infoModalOverlay.classList.add("show");
+            }
+        });
+
+        closeInfoBtn.addEventListener("click", () => {
+            infoModalOverlay.classList.remove("show");
+        });
+
+        // Кнопка пополнения - только показывает "Скоро будет доступно!"
+        addBalanceBtn.addEventListener("click", () => {
+            if (isSpinning) return;
+            soonAvailableModalOverlay.classList.add('show');
+        });
+
+        // Обработчики для новой кнопки "Минус" и модального окна "Скоро будет доступно!"
+        subtractBalanceBtn.addEventListener('click', () => {
+            if (isSpinning) return;
+            soonAvailableModalOverlay.classList.add('show');
+        });
+
+        soonAvailableModalClose.addEventListener('click', () => {
+            soonAvailableModalOverlay.classList.remove('show');
+        });
+
+        // Удалены неиспользуемые модалки и связанные с ними функции:
+        // - depositModalOverlay (и все его элементы/логика)
+        // - depositConfirmModalOverlay (и все его элементы/логика)
+        // - quickSpinModalOverlay (и все его элементы/логика, так как Quick теперь мгновенный)
+        // - quickSpinResultsModalOverlay (и все его элементы/логика)
+    </script>
+</body>
+</html>
